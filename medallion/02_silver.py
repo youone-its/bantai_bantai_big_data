@@ -1,0 +1,171 @@
+#tess12345
+import os
+from datetime import datetime
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import (
+    col, lit, current_timestamp, to_timestamp, 
+    trim, lower, upper, coalesce, when, round,
+    row_number
+)
+from pyspark.sql.window import Window
+from delta import configure_spark_with_delta_pip
+from pyspark.sql import SparkSession
+
+builder = (
+    SparkSession.builder
+    .appName("medallion-bronze")
+    .config(
+        "spark.sql.extensions",
+        "io.delta.sql.DeltaSparkSessionExtension"
+    )
+    .config(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+    )
+)
+
+spark = configure_spark_with_delta_pip(builder).getOrCreate()
+
+print("="*70)
+print(" SILVER LAYER: Data Cleaning & Transformation")
+print("="*70)
+
+HDFS_HOST = os.getenv("HDFS_HOST", "namenode")
+HDFS_PORT = os.getenv("HDFS_PORT", "8020")
+HDFS_PATH = f"hdfs://{HDFS_HOST}:{HDFS_PORT}"
+
+LAKEHOUSE_PATH = f"{HDFS_PATH}/lakehouse"
+BRONZE_PATH = f"{LAKEHOUSE_PATH}/bronze"
+SILVER_PATH = f"{LAKEHOUSE_PATH}/silver"
+
+OPEN_DATA_TABLES = [
+    {"bronze": "sby_penduduk_usia", "silver": "sby_penduduk_usia", "dedup_cols": ["nama_kecamatan", "nama_kelurahan"]},
+    {"bronze": "sby_sekolah_akreditasi", "silver": "sby_sekolah_akreditasi", "dedup_cols": ["kode_sekolah"]},
+    {"bronze": "sby_sekolah_negeri_swasta", "silver": "sby_sekolah_negeri_swasta", "dedup_cols": ["kecamatan", "jenjang"]},
+    {"bronze": "sby_siswa_negeri_swasta", "silver": "sby_siswa_negeri_swasta", "dedup_cols": ["kecamatan", "jenjang", "status"]},
+    {"bronze": "sby_sd_akreditasi_kecamatan", "silver": "sby_sd_akreditasi_kecamatan", "dedup_cols": ["kecamatan", "akreditasi"]},
+    {"bronze": "sby_smp_akreditasi_kecamatan", "silver": "sby_smp_akreditasi_kecamatan", "dedup_cols": ["kecamatan", "akreditasi"]},
+    {"bronze": "sby_sekolah_murid_guru_rasio", "silver": "sby_sekolah_murid_guru_rasio", "dedup_cols": ["kecamatan", "jenjang"]},
+]
+
+print("\n  Cleaning Weather API Data...")
+try:
+    df_weather = spark.read.format("delta").load(f"{BRONZE_PATH}/weather_api")
+    print(f" Read {df_weather.count()} records from Bronze")
+    
+    df_weather_clean = df_weather \
+        .filter(col("kode_kota").isNotNull()) \
+        .filter(col("temperature").isNotNull()) \
+        .filter(col("humidity").isNotNull()) \
+        .filter(col("wind_speed").isNotNull())
+    
+    df_weather_clean = df_weather_clean \
+        .withColumn("kode_kota", upper(trim(col("kode_kota")))) \
+        .withColumn("nama_kota", trim(col("nama_kota"))) \
+        .withColumn("temperature", round(col("temperature"), 2)) \
+        .withColumn("humidity", col("humidity").cast("int")) \
+        .withColumn("wind_speed", round(col("wind_speed"), 2)) \
+        .withColumn("timestamp", to_timestamp(col("timestamp"))) \
+        .withColumn("_processed_at", current_timestamp())
+    
+    window_spec = Window.partitionBy("kode_kota").orderBy(col("timestamp").desc())
+    df_weather_clean = df_weather_clean \
+        .withColumn("row_num", row_number().over(window_spec)) \
+        .filter(col("row_num") == 1) \
+        .drop("row_num")
+    
+    df_weather_clean.write.format("delta").mode("overwrite").save(f"{SILVER_PATH}/weather_api")
+    print(f" Written {df_weather_clean.count()} cleaned weather records to Silver")
+    
+except Exception as e:
+    print(f"  Error processing weather data: {e}")
+
+print("\n Cleaning News Data...")
+try:
+    df_news = spark.read.format("delta").load(f"{BRONZE_PATH}/weather_rss")
+    print(f" Read {df_news.count()} records from Bronze")
+    
+    df_news_clean = df_news \
+        .filter(col("judul").isNotNull()) \
+        .filter(col("link").isNotNull()) \
+        .filter(col("sumber").isNotNull())
+    
+    df_news_clean = df_news_clean \
+        .withColumn("judul", trim(col("judul"))) \
+        .withColumn("ringkasan", coalesce(trim(col("ringkasan")), lit(""))) \
+        .withColumn("sumber", lower(trim(col("sumber")))) \
+        .withColumn("waktu_terbit", to_timestamp(col("waktu_terbit"))) \
+        .withColumn("_processed_at", current_timestamp())
+    
+    window_spec = Window.partitionBy("judul", "sumber").orderBy(col("waktu_terbit").desc())
+    df_news_clean = df_news_clean \
+        .withColumn("row_num", row_number().over(window_spec)) \
+        .filter(col("row_num") == 1) \
+        .drop("row_num")
+    
+    df_news_clean.write.format("delta").mode("overwrite").save(f"{SILVER_PATH}/weather_rss")
+    print(f" Written {df_news_clean.count()} cleaned news records to Silver")
+    
+except Exception as e:
+    print(f"  Error processing news data: {e}")
+
+print("\n" + "="*70)
+print(" Weather Silver layer complete!")
+print(f" Transformasi: dedup, null filtering, type casting, standardisasi")
+print(f" Weather API Silver: {SILVER_PATH}/weather_api")
+print(f" News Silver: {SILVER_PATH}/weather_rss")
+print("="*70 + "\n")
+
+# ============================================================================
+# OPEN DATA SURABAYA: Cleaning & Transformation
+# ============================================================================
+
+print("\n" + "="*70)
+print(" OPEN DATA SURABAYA: Cleaning & Transformation")
+print("="*70)
+
+for ds in OPEN_DATA_TABLES:
+    bronze_table = ds["bronze"]
+    silver_table = ds["silver"]
+    dedup_cols = ds["dedup_cols"]
+    bronze_input = f"{BRONZE_PATH}/{bronze_table}"
+    silver_output = f"{SILVER_PATH}/{silver_table}"
+    
+    print(f"\n Cleaning: {bronze_table}")
+    print(f"  Bronze Input: {bronze_input}")
+    print(f"  Silver Output: {silver_output}")
+    
+    try:
+        df_raw = spark.read.format("delta").load(bronze_input)
+        record_count = df_raw.count()
+        print(f"  Read {record_count} records from Bronze")
+        
+        if record_count == 0:
+            print(f"  No data, skipping...")
+            continue
+        
+        df_clean = df_raw
+        
+        string_cols = [f.name for f in df_raw.schema.fields if f.dataType.simpleString() == "string"]
+        for col_name in string_cols:
+            if col_name not in ["_ingested_at", "_source", "_hdfs_source", "source_resource_id", "ingested_at"]:
+                df_clean = df_clean.withColumn(col_name, trim(col(col_name)))
+        
+        df_clean = df_clean.dropDuplicates(dedup_cols)
+        
+        df_clean = df_clean.withColumn("_processed_at", current_timestamp())
+        
+        df_clean.write.format("delta").mode("overwrite").save(silver_output)
+        print(f"  Written {df_clean.count()} cleaned records to Silver")
+        
+    except Exception as e:
+        print(f"  Error processing {bronze_table}: {e}")
+        print(f"  (Bronze data may not exist yet)")
+
+print("\n" + "="*70)
+print(" Silver layer complete!")
+print(f" Weather tables: {SILVER_PATH}/weather_api, {SILVER_PATH}/weather_rss")
+print(f" Open Data SBY tables: {SILVER_PATH}/sby_*")
+print("="*70 + "\n")
+
+spark.stop()
