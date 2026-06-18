@@ -46,70 +46,6 @@ OPEN_DATA_DATASETS = [
     {"name": "sekolah_murid_guru_rasio", "hdfs_subpath": "sekolah-murid-guru-rasio", "bronze_table": "sby_sekolah_murid_guru_rasio"},
 ]
 
-print("\n Creating sample Weather API data...")
-sample_weather_api = spark.createDataFrame([
-    {
-        "kode_kota": "JKT",
-        "nama_kota": "Jakarta",
-        "temperature": 28.5,
-        "humidity": 75,
-        "wind_speed": 10.0,
-        "weather_code": 0,
-        "timestamp": "2026-05-30 14:30:00",
-    },
-    {
-        "kode_kota": "SBY",
-        "nama_kota": "Surabaya",
-        "temperature": 26.2,
-        "humidity": 68,
-        "wind_speed": 8.5,
-        "weather_code": 1,
-        "timestamp": "2026-05-30 14:30:00",
-    },
-], schema="kode_kota string, nama_kota string, temperature double, humidity int, wind_speed double, weather_code int, timestamp string")
-
-weather_api_bronze = sample_weather_api \
-    .withColumn("_ingested_at", current_timestamp()) \
-    .withColumn("_source", lit("weather-api"))
-
-weather_api_bronze = weather_api_bronze.dropDuplicates(["kode_kota", "timestamp"])
-
-weather_api_bronze.write.format("delta").mode("overwrite").save(f"{BRONZE_PATH}/weather_api")
-print(f" Written {weather_api_bronze.count()} weather API records to Bronze")
-
-print("\n Creating sample RSS News data...")
-sample_news = spark.createDataFrame([
-    {
-        "judul": "Cuaca Ekstrem di Jakarta Rabu Sore",
-        "link": "https://example.com/berita/1",
-        "ringkasan": "Hujan deras disertai angin kuat di Jakarta",
-        "sumber": "detik",
-        "waktu_terbit": "2026-05-30 12:00:00",
-    },
-    {
-        "judul": "Surabaya Alami Kenaikan Suhu",
-        "link": "https://example.com/berita/2",
-        "ringkasan": "Panas terik melanda Kota Pahlawan",
-        "sumber": "kompas",
-        "waktu_terbit": "2026-05-30 13:15:00",
-    },
-], schema="judul string, link string, ringkasan string, sumber string, waktu_terbit string")
-
-news_bronze = sample_news \
-    .withColumn("_ingested_at", current_timestamp()) \
-    .withColumn("_source", lit("weather-rss"))
-
-news_bronze = news_bronze.dropDuplicates(["judul", "sumber"])
-
-news_bronze.write.format("delta").mode("overwrite").save(f"{BRONZE_PATH}/weather_rss")
-print(f" Written {news_bronze.count()} news records to Bronze")
-
-print("\n" + "="*70)
-print(" Weather Bronze layer complete!")
-print(f" Weather API Bronze: {BRONZE_PATH}/weather_api")
-print(f" News Bronze: {BRONZE_PATH}/weather_rss")
-print("="*70 + "\n")
-
 # ============================================================================
 # OPEN DATA SURABAYA: Ingest from HDFS JSON files
 # ============================================================================
@@ -148,7 +84,6 @@ for ds in OPEN_DATA_DATASETS:
 
 print("\n" + "="*70)
 print(" Bronze layer complete!")
-print(f" Weather tables: {BRONZE_PATH}/weather_api, {BRONZE_PATH}/weather_rss")
 print(f" Open Data SBY tables: {BRONZE_PATH}/sby_*")
 print("="*70 + "\n")
 

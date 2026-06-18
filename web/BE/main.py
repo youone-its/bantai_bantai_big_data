@@ -35,11 +35,6 @@ GOLD_PATH = os.getenv("GOLD_PATH", "/lakehouse/gold")
 hdfs_client = InsecureClient(url=f"http://{HDFS_HOST}:{WEBHDFS_PORT}", root=GOLD_PATH)
 
 GOLD_TABLES = {
-    "weather_analytics": "Weather analytics per kota (temperature trends)",
-    "weather_extremes": "Cuaca ekstrem per kota (summary stats)",
-    "news_by_source": "Distribusi berita per sumber",
-    "recent_news": "20 berita terbaru",
-    "weather_news_correlation": "Korelasi cuaca dan berita",
     "sby_sekolah_per_kecamatan": "Sekolah per kecamatan di Surabaya",
     "sby_siswa_per_kecamatan": "Siswa per kecamatan di Surabaya",
     "sby_sd_akreditasi_summary": "Ringkasan akreditasi SD per kecamatan",
