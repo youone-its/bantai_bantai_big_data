@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv-host/
+.venv/
+
+# Spark / Delta local metastore (dibuat saat spark-submit di host)
+medallion/metastore_db/
+metastore_db/
+derby.log
+spark-warehouse/
+
+# Log sementara
+*.log
+/tmp/
+
+# OS
+.DS_Store
