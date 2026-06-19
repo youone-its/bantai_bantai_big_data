@@ -32,7 +32,7 @@ run_spark_job() {
     echo "========================================================================"
     echo ""
     
-    docker exec -it $SPARK_CONTAINER python /app/$script
+    docker exec -e HADOOP_USER_NAME=hadoop $SPARK_CONTAINER spark-submit /app/$script
     
     if [ $? -eq 0 ]; then
         echo ""
@@ -56,6 +56,10 @@ run_spark_job "03_gold.py" "GOLD LAYER - Business Analytics"
 # Run Spark Max Value Pipeline
 run_spark_job "05_spark_max_value.py" "SPARK MAX VALUE - Find Max + 20%"
 
+# Run Analysis 2 (SCGI, K-Means, Evaluation)
+run_spark_job "08_analysis2.py" "ANALYSIS 2 - SCGI, K-Means & Model Evaluation"
+
+
 echo ""
 echo "========================================================================"
 echo " ✅ ALL MEDALLION PIPELINES COMPLETED!"
@@ -66,6 +70,7 @@ echo "  🥉 Bronze: Raw data ingested from HDFS"
 echo "  🥈 Silver: Data cleaned and transformed"
 echo "  🥇 Gold: Business analytics created"
 echo "  📊 Max Value: Max capacity + 20% calculated"
+echo "  🔬 Analysis 2: SCGI, K-Means, MAPE & Evaluation metrics"
 echo ""
 echo "Next steps:"
 echo "  - Check results: bash scripts/05-check-medallion.sh"

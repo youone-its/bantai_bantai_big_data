@@ -47,6 +47,10 @@ GOLD_TABLES = {
     "gold_gap_analysis": "Gap demand vs kapasitas + siswa berpotensi tidak tertampung",
     "gold_rekomendasi_usb_rkb": "Rekomendasi prioritas USB/RKB per kecamatan",
     "gold_data_quality_report": "Hasil pemeriksaan kualitas data lakehouse",
+    # --- Analysis 2: DSS (PIC: Ni'mah) ---
+    "gold_school_capacity_gap_index": "School Capacity Gap Index (SCGI) per kecamatan — skor komposit defisit kapasitas sekolah",
+    "gold_cluster_priority": "K-Means clustering prioritas intervensi (Kritis/Tinggi/Sedang/Rendah) per kecamatan",
+    "gold_evaluation_metrics": "Metrik evaluasi model: MAPE proyeksi, Silhouette Score, Davies-Bouldin Index",
     # --- Deskriptif ---
     "sby_sekolah_per_kecamatan": "Jumlah sekolah negeri/swasta per kecamatan",
     "sby_siswa_per_kecamatan": "Jumlah siswa negeri/swasta per kecamatan",
@@ -120,10 +124,18 @@ def read_delta_table(table_name: str) -> list[dict]:
 async def root():
     return {
         "message": "Medallion Gold API - Open Data Surabaya",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "docs": "/docs",
-        "endpoints": ["/tables", "/tables/{name}", "/analysis/rekomendasi",
-                      "/analysis/gap/{kecamatan}", "/analysis/proyeksi/{kecamatan}", "/health"],
+        "endpoints": [
+            "/tables", "/tables/{name}",
+            "/analysis/rekomendasi",
+            "/analysis/gap/{kecamatan}",
+            "/analysis/proyeksi/{kecamatan}",
+            "/analysis/scgi",
+            "/analysis/cluster",
+            "/analysis/evaluation",
+            "/health",
+        ],
     }
 
 
@@ -194,6 +206,89 @@ async def proyeksi_kecamatan(kecamatan: str):
         raise HTTPException(status_code=404, detail=f"Kecamatan '{kecamatan}' tidak ditemukan")
     data.sort(key=lambda r: r.get("tahun_proyeksi", 0))
     return {"kecamatan": kecamatan, "count": len(data), "data": data}
+
+
+# ---------------------------------------------------------------------------
+# ENDPOINT ANALYSIS 2 — SCGI, Cluster, Evaluation  (PIC: Ni'mah)
+# ---------------------------------------------------------------------------
+@app.get("/analysis/scgi")
+async def scgi(
+    top: int = Query(default=31, ge=1, le=31),
+    category: Optional[str] = Query(
+        default=None,
+        description="Filter kategori: KRITIS | TINGGI | SEDANG | RENDAH | AMAN"
+    ),
+):
+    """
+    School Capacity Gap Index (SCGI) per kecamatan.
+
+    SCGI = 0.50 × deficit_rate + 0.30 × utilisasi_norm + 0.20 × growth_rate
+    Rentang 0–100.  Kategori: KRITIS ≥70 | TINGGI ≥50 | SEDANG ≥30 | RENDAH >0 | AMAN ≤0
+
+    Query params:
+    - top      : ambil N kecamatan teratas (urut scgi_rank)
+    - category : filter kategori SCGI
+    """
+    data = read_delta_table("gold_school_capacity_gap_index")
+    if category:
+        data = [r for r in data if r.get("scgi_category") == category.upper()]
+    data.sort(key=lambda r: r.get("scgi_rank", 9999))
+    return {
+        "count": len(data),
+        "filter_category": category,
+        "data": data[:top],
+    }
+
+
+@app.get("/analysis/cluster")
+async def cluster(
+    priority: Optional[str] = Query(
+        default=None,
+        description="Filter prioritas: KRITIS | TINGGI | SEDANG | RENDAH"
+    ),
+):
+    """
+    K-Means Clustering prioritas intervensi per kecamatan (K=4).
+
+    Cluster di-rank berdasarkan rata-rata fitur SCGI:
+    - priority_rank 1 → KRITIS  (intervensi mendesak)
+    - priority_rank 2 → TINGGI
+    - priority_rank 3 → SEDANG
+    - priority_rank 4 → RENDAH  (kapasitas masih cukup)
+
+    Query params:
+    - priority : filter label prioritas
+    """
+    data = read_delta_table("gold_cluster_priority")
+    if priority:
+        data = [r for r in data if r.get("priority_label") == priority.upper()]
+    data.sort(key=lambda r: (r.get("priority_rank", 9), r.get("scgi_rank", 9999)))
+    # Ringkasan per cluster
+    summary: dict = {}
+    for row in data:
+        pid = str(row.get("priority_rank"))
+        plabel = row.get("priority_label", "?")
+        summary.setdefault(pid, {"priority_rank": row.get("priority_rank"),
+                                  "priority_label": plabel, "kecamatan": []})
+        summary[pid]["kecamatan"].append(row.get("kecamatan_norm"))
+    return {
+        "count": len(data),
+        "filter_priority": priority,
+        "cluster_summary": list(summary.values()),
+        "data": data,
+    }
+
+
+@app.get("/analysis/evaluation")
+async def evaluation():
+    """
+    Metrik evaluasi model Analysis 2:
+    - MAPE    : akurasi proyeksi cohort (< 20% = Baik)
+    - Silhouette Score   : kualitas cluster K-Means (> 0.5 = Baik)
+    - Davies-Bouldin Index: kompaktitas cluster (< 1.0 = Baik)
+    """
+    data = read_delta_table("gold_evaluation_metrics")
+    return {"count": len(data), "data": data}
 
 
 @app.get("/health")

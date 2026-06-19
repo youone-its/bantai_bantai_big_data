@@ -1,9 +1,6 @@
 #!/bin/bash
 
 echo "Creating HDFS directories for raw data from Kafka consumer..."
-docker exec -it hadoop-namenode hdfs dfs -mkdir -p /data/weather/api
-docker exec -it hadoop-namenode hdfs dfs -mkdir -p /data/weather/rss
-docker exec -it hadoop-namenode hdfs dfs -mkdir -p /data/weather/hasil
 
 echo ""
 echo "Creating HDFS directories for Open Data Surabaya..."

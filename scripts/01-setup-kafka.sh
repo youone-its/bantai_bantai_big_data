@@ -32,19 +32,6 @@ echo ""
 echo "Creating Kafka topics..."
 echo ""
 
-# Weather topics
-echo "📡 Weather topics:"
-docker exec $KAFKA_CONTAINER /opt/kafka/bin/kafka-topics.sh \
-    --create --topic weather-api \
-    --partitions 6 --replication-factor 1 \
-    --config retention.ms=86400000 \
-    --bootstrap-server $BOOTSTRAP_SERVER 2>/dev/null || echo "   ⚠️  weather-api already exists"
-
-docker exec $KAFKA_CONTAINER /opt/kafka/bin/kafka-topics.sh \
-    --create --topic weather-rss \
-    --partitions 6 --replication-factor 1 \
-    --config retention.ms=86400000 \
-    --bootstrap-server $BOOTSTRAP_SERVER 2>/dev/null || echo "   ⚠️  weather-rss already exists"
 
 # Open Data Surabaya topics
 echo ""

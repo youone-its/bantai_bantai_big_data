@@ -63,8 +63,10 @@ echo "Producer will fetch data from Open Data Surabaya API and send to Kafka"
 echo ""
 
 # Run producer in background for 30 seconds to fetch data
-timeout 30s python producer_ingest/producer_open_data.py &
+# (timeout is GNU-only; use portable kill-after workaround for macOS)
+python3 producer_ingest/producer_open_data.py &
 PRODUCER_PID=$!
+( sleep 30; kill $PRODUCER_PID 2>/dev/null ) &
 
 echo "Producer started (PID: $PRODUCER_PID)"
 echo "Waiting for data to be produced..."
@@ -81,7 +83,7 @@ echo "Consumer will read from Kafka and write to HDFS"
 echo ""
 
 # Run consumer in background for 30 seconds
-timeout 30s python producer_ingest/consumer_to_hdfs.py &
+python3 producer_ingest/consumer_to_hdfs.py &
 CONSUMER_PID=$!
 
 echo "Consumer started (PID: $CONSUMER_PID)"
