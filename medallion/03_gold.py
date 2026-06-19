@@ -23,10 +23,13 @@ from itertools import chain
 from pyspark.sql import SparkSession
 from pyspark.sql.window import Window
 from pyspark.sql.functions import (
-    col, lit, current_timestamp, coalesce, when, round as sround,
-    sum as Fsum, max as Fmax, count as Fcount, greatest, row_number,
-    ceil as Fceil, create_map,
+    col, lit, current_timestamp, coalesce, when, greatest, row_number, create_map
 )
+from pyspark.sql.functions import round as sround
+from pyspark.sql.functions import sum as Fsum
+from pyspark.sql.functions import max as Fmax
+from pyspark.sql.functions import count as Fcount
+from pyspark.sql.functions import ceil as Fceil
 from delta import configure_spark_with_delta_pip
 
 builder = (
@@ -145,7 +148,9 @@ def build_kapasitas():
     print("\n[2/4] gold_kapasitas_kecamatan")
     akr = read_silver("sby_sekolah_akreditasi")
     tahun_pagu = akr.agg(Fmax("tahun").alias("t")).collect()[0]["t"]
-    pagu = akr.filter(col("tahun") == tahun_pagu).groupBy("kecamatan_key", "kecamatan_norm").agg(
+    pagu = akr.filter(col("tahun") == tahun_pagu) \
+              .filter(col("kecamatan_key").isNotNull()) \
+              .groupBy("kecamatan_key", "kecamatan_norm").agg(
         Fsum(coalesce(col("kapasitas_pagu_siswa"), lit(0))).cast("long").alias("total_pagu"),
         Fsum(coalesce(col("jumlah_ruang_kelas"), lit(0))).cast("long").alias("total_ruang_kelas"),
         Fsum(coalesce(col("jumlah_rombel"), lit(0))).cast("long").alias("total_rombel"),

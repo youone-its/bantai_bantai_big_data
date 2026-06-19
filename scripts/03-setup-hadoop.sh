@@ -32,12 +32,6 @@ echo "Checking HDFS health..."
 docker exec $HADOOP_CONTAINER hdfs dfsadmin -report 2>/dev/null | grep -E "Name:|Configured Capacity:|DFS Used:|Available:" | head -4
 echo ""
 
-# Create directories for raw data from Kafka consumer
-echo "Creating HDFS directories for raw data (from Kafka consumer)..."
-docker exec $HADOOP_CONTAINER hdfs dfs -mkdir -p /data/weather/api
-docker exec $HADOOP_CONTAINER hdfs dfs -mkdir -p /data/weather/rss
-docker exec $HADOOP_CONTAINER hdfs dfs -mkdir -p /data/weather/hasil
-echo "  ✅ /data/weather/*"
 
 # Create directories for Open Data Surabaya
 echo ""

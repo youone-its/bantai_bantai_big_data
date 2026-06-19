@@ -36,8 +36,6 @@ docker exec $HADOOP_CONTAINER hdfs dfsadmin -report 2>/dev/null | grep -E "Name:
 echo ""
 echo "3️⃣  HDFS Directory Structure:"
 echo ""
-echo "  📁 /data/weather/ (Raw Weather Data):"
-docker exec $HADOOP_CONTAINER hdfs dfs -ls -R /data/weather/ 2>/dev/null | sed 's/^/    /' || echo "    (empty or not found)"
 
 echo ""
 echo "  📁 /data/opendata-sby/ (Open Data Surabaya - Raw from Kafka):"
@@ -66,7 +64,6 @@ count_files() {
     echo "  $path: ${count:-0} files"
 }
 
-count_files "/data/weather"
 count_files "/data/opendata-sby"
 count_files "/lakehouse/bronze"
 count_files "/lakehouse/silver"

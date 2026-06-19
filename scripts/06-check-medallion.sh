@@ -65,8 +65,6 @@ echo " 🥉 BRONZE LAYER - Raw Data"
 echo "========================================================================"
 
 BRONZE_TABLES=(
-    "weather_api"
-    "weather_rss"
     "sby_penduduk_usia"
     "sby_sekolah_akreditasi"
     "sby_sekolah_negeri_swasta"
@@ -87,8 +85,6 @@ echo " 🥈 SILVER LAYER - Cleaned Data"
 echo "========================================================================"
 
 SILVER_TABLES=(
-    "weather_api"
-    "weather_rss"
     "sby_penduduk_usia"
     "sby_sekolah_akreditasi"
     "sby_sekolah_negeri_swasta"
@@ -109,11 +105,6 @@ echo " 🥇 GOLD LAYER - Business Analytics"
 echo "========================================================================"
 
 GOLD_TABLES=(
-    "weather_analytics"
-    "weather_extremes"
-    "news_by_source"
-    "recent_news"
-    "weather_news_correlation"
     "sby_sekolah_per_kecamatan"
     "sby_siswa_per_kecamatan"
     "sby_sd_akreditasi_summary"
