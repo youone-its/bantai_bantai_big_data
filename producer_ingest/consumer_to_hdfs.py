@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 from kafka import KafkaConsumer
 
-# [Ni’mah Fauziyyah Atok]: Konfigurasi Pipeline
+# [Ni'mah Fauziyyah Atok]: Konfigurasi Pipeline — Open Data Surabaya only
 BOOTSTRAP_SERVERS = ["localhost:9092"]
 TOPIC_SBY_PENDUDUK = "sby-penduduk-usia"
 TOPIC_SBY_SEKOLAH = "sby-sekolah-akreditasi"
@@ -41,12 +41,12 @@ lock_sby_smp_akreditasi_kecamatan = threading.Lock()
 lock_sby_sekolah_murid_guru_rasio = threading.Lock()
 
 def simpan_ke_hdfs(data, hdfs_path, label):
-    """[Ni’mah Fauziyyah Atok]: Logika pemindahan data dari lokal ke HDFS via Docker"""
+    """[Ni'mah Fauziyyah Atok]: Logika pemindahan data dari lokal ke HDFS via Docker"""
     if not data:
         return
-    
+
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    tmp_local = f"/tmp/opendata_{label}_{ts}.json"
+    tmp_local = f"/tmp/sby_{label}_{ts}.json"
     hdfs_dest = f"{hdfs_path}/{ts}.json"
 
     try:
@@ -71,12 +71,12 @@ def simpan_ke_hdfs(data, hdfs_path, label):
         # 4. Hapus file sampah di lokal dan di container
         os.remove(tmp_local)
         subprocess.run(["docker", "exec", "hadoop-namenode", "rm", tmp_local], capture_output=True)
-        
+
     except Exception as e:
         print(f"  [{label}] ⚠️ Error proses HDFS: {e}")
 
 def loop_consumer(topic, buffer, lock, hdfs_path, label):
-    """[Ni’mah Fauziyyar Atok]: Thread untuk membaca Kafka dan mengisi buffer"""
+    """[Ni'mah Fauziyyah Atok]: Thread untuk membaca Kafka dan mengisi buffer"""
     consumer = KafkaConsumer(
         topic,
         bootstrap_servers=BOOTSTRAP_SERVERS,
@@ -85,7 +85,7 @@ def loop_consumer(topic, buffer, lock, hdfs_path, label):
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         consumer_timeout_ms=1000
     )
-    
+
     print(f"[Consumer {label}] Dimulai...")
     last_flush = time.time()
 
@@ -94,17 +94,17 @@ def loop_consumer(topic, buffer, lock, hdfs_path, label):
             for msg in consumer:
                 with lock:
                     buffer.append(msg.value)
-            
+
             # Cek apakah sudah waktunya flush ke HDFS
             if time.time() - last_flush >= FLUSH_INTERVAL:
                 with lock:
                     data_copy = buffer.copy()
                     buffer.clear()
-                
+
                 if data_copy:
                     simpan_ke_hdfs(data_copy, hdfs_path, label)
                 last_flush = time.time()
-                
+
     except Exception as e:
         print(f"[Consumer {label}] Error: {e}")
     finally:

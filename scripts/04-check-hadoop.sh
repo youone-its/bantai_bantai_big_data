@@ -36,6 +36,7 @@ docker exec $HADOOP_CONTAINER hdfs dfsadmin -report 2>/dev/null | grep -E "Name:
 echo ""
 echo "3️⃣  HDFS Directory Structure:"
 echo ""
+
 echo ""
 echo "  📁 /data/opendata-sby/ (Open Data Surabaya - Raw from Kafka):"
 docker exec $HADOOP_CONTAINER hdfs dfs -ls -R /data/opendata-sby/ 2>/dev/null | sed 's/^/    /' || echo "    (empty or not found)"

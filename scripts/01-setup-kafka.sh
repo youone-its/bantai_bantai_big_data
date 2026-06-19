@@ -32,6 +32,7 @@ echo ""
 echo "Creating Kafka topics..."
 echo ""
 
+
 # Open Data Surabaya topics
 echo ""
 echo "📊 Open Data Surabaya topics:"
