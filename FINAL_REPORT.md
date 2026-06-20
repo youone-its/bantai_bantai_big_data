@@ -252,3 +252,62 @@ docker compose up -d --build backend
    npm run dev
    ```
    *Dashboard default berjalan pada alamat: `http://localhost:5173`*
+
+---
+
+## 8. Penjelasan Workspace & Komponen Aliran Data
+
+Workspace proyek Big Data ini dirancang dengan struktur terstruktur yang mengikuti arsitektur data modern (*Lakehouse* dengan *serving layer database*). Secara umum, workspace ini dibagi menjadi 5 area utama yang mengalirkan data dari sumber mentah (API) hingga divisualisasikan pada dashboard antarmuka pengguna (Frontend).
+
+Berikut penjelasan mendalam mengenai hal-hal penting di dalam workspace:
+
+### 8.1 Struktur Folder Utama & Fungsinya
+```
+bantai_bantai_big_data/
+├── docker-compose.yml       # Orkestrasi infrastruktur kontainer (Hadoop, Kafka, Spark, Postgres, Backend)
+├── Pipeline.md              # Dokumentasi teknis alur data dan runbook sistem
+├── FINAL_REPORT.md          # Laporan akhir formal (executive report) berbasis kriteria rubrik
+│
+├── producer_ingest/         # [LAYER 1: INGESTION]
+│   ├── producer_open_data.py  # CKAN API Surabaya ➔ Kafka Broker
+│   └── consumer_to_hdfs.py    # Kafka Broker ➔ HDFS (Penyimpanan terdistribusi)
+│
+├── medallion/               # [LAYER 2: DATA LAKEHOUSE & PYSPARK]
+│   ├── 01_bronze.py ➔ 02_silver.py ➔ 03_gold.py   # Tahapan ETL Medallion Architecture
+│   ├── 06_data_quality.py   # Audit kualitas data (menghasilkan DATA_QUALITY_REPORT.md)
+│   ├── 08_analysis2.py      # Core Model: Perhitungan SCGI, K-Means Clustering, & Metrik Evaluasi
+│   └── 09_db_sync.py        # Sinkronisasi HDFS Delta Lake ➔ Serving Database PostgreSQL
+│
+├── web/                     # [LAYER 3 & 4: SERVING LAYER & DASHBOARD]
+│   ├── BE/                  # FastAPI REST API (menghubungkan PostgreSQL ke Frontend)
+│   └── FE/                  # React + Vite + Leaflet GIS (Antarmuka pengguna premium)
+│
+└── notebooks/               # [ RISET & GEOSPATIAL]
+    └── 01_ ➔ 06_*.ipynb     # Notebook Jupyter untuk eksperimen, grafik Elbow, dan Voronoi GeoPandas
+```
+
+### 8.2 Penjelasan Komponen Kunci Aliran Data
+* **A. Ingestion Layer (Kafka ➔ HDFS)**:  
+  Data ditarik secara dinamis dari CKAN API (Open Data Surabaya) menggunakan script Python di host, lalu dialirkan sebagai *message queues* ke Kafka Topic. Consumer daemon mengambil pesan dari Kafka dan menyimpannya secara terdistribusi ke sistem penyimpanan Hadoop HDFS (`hdfs://namenode:8020/data/opendata-sby/`).
+
+* **B. Storage & Processing Layer (Delta Lakehouse)**:  
+  Semua data di HDFS disimpan dalam format Delta Lake (Parquet yang didukung file log transaksi) untuk menjamin transaksi ACID dan penegakan skema yang ketat. Data diproses secara bertahap menggunakan Apache Spark (PySpark) di dalam kontainer `spark-medallion` melalui tiga lapisan:
+  - **Bronze**: Menyimpan data mentah beserta audit metadata waktu pengambilan.
+  - **Silver**: Melakukan pembersihan data, konversi tipe data, deduplikasi baris, serta penyamaan kunci kecamatan (`kecamatan_key`) agar data antar-dataset yang berbeda ejaan bisa digabungkan secara akurat.
+  - **Gold (Serving Layer Sync)**: Menyusun tabel analitik akhir. Script `09_db_sync.py` memindahkan data matang ini dari Delta Lakehouse ke PostgreSQL Serving Database (`bigdata_db`) menggunakan driver JDBC.
+
+* **C. API Gateway & Serving Layer (FastAPI Backend)**:  
+  Berlokasi di `web/BE`, FastAPI bertindak sebagai jembatan berkinerja tinggi. FastAPI tidak membaca data langsung dari HDFS (karena lambat untuk request web), melainkan membaca data mart teragregasi yang sudah tersinkronisasi di PostgreSQL kontainer secara instan menggunakan SQLAlchemy Connection Pool.
+
+* **D. Presentation Layer (React Frontend)**:  
+  Berlokasi di `web/FE`, dibangun menggunakan framework modern Vite + React + TypeScript. Halaman-halaman antarmuka dipecah secara modular di dalam folder `src/pages/` untuk mempermudah pemeliharaan kode (seperti halaman peta GIS, grafik proyeksi, indeks SCGI, estimasi siswa, dan rekomendasi sekolah baru).
+
+### 8.3 Keunggulan Desain Workspace
+* **Decoupled Architecture (Pemisahan Tugas)**: Beban komputasi analitik berat (seperti clustering ML K-Means dan forecasting ratusan ribu baris data demografi) diselesaikan secara terjadwal di Apache Spark, sedangkan backend web (FastAPI) hanya melayani kueri database relasional cepat (PostgreSQL). Hal ini membuat website dashboard tidak lag saat diakses oleh banyak pengguna secara bersamaan.
+* **Keamanan Data**: Semua variabel konfigurasi kredensial dideklarasikan di satu tempat secara terpusat pada file `docker-compose.yml` untuk mempermudah deployment *plug-and-play*.
+* **Evaluasi Terintegrasi**: Laporan kualitas data (`DATA_QUALITY_REPORT.md`) di-update otomatis di akhir pipeline data untuk mengaudit integritas, konsistensi nama, kelengkapan (*non-nullability*), dan kecocokan data (*joinability*).
+
+### 8.4 Hubungan Eksperimen Jupyter Notebook & Pipeline Produksi
+Semua berkas Jupyter Notebook (Notebook 01 s.d. 05) sudah selesai melaksanakan tugasnya sebagai "laboratorium riset" dan tidak perlu dijalankan satu per satu saat running di production.
+* **Logikanya Sudah Diambil Alih oleh PySpark Pipeline**: Semua rumus komputasi proyeksi cohort survival, pengelompokan K-Means, perhitungan indeks komposit SCGI, hingga metrik evaluasi sudah disalin dan diotomatisasi secara terdistribusi di dalam script Spark `08_analysis2.py` dan disinkronkan ke PostgreSQL serving database oleh `09_db_sync.py`.
+* **Aset Spasial (Voronoi & Koordinat) Sudah Tersimpan Permanen**: Output geospasial penting yang dihasilkan di Notebook 06 sudah disimpan secara berkala: Batas wilayah poligon kecamatan sudah tersimpan di `web/FE/public/surabaya_kecamatan_voronoi.geojson`, koordinat latitude/longitude centroid 31 kecamatan sudah tersinkronisasi di database PostgreSQL, dan perutean jalan raya (OSRM) dihitung secara instan langsung oleh browser pengguna di Frontend React.
