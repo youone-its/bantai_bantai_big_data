@@ -195,7 +195,7 @@ pip install kafka-python requests
    ```bash
    docker compose up -d spark
    # Install dependencies analisis ke dalam container
-   docker exec spark-medallion pip install numpy pandas scikit-learn -q
+   docker exec spark-medallion pip install numpy pandas scikit-learn
    
    # Jalankan tahapan Spark Submit
    docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/01_bronze.py
