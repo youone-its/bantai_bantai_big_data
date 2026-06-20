@@ -149,10 +149,30 @@ Evaluasi kualitas pengelompokan diuji secara kuantitatif:
 * **Peta Choropleth Interaktif**: Frontend React menggunakan Leaflet untuk menampilkan batas kecamatan dengan gradasi warna HSL kontras berdasarkan nilai SCGI, Cluster, maupun Defisit Kapasitas.
 * **Geo-Routing (OSRM API)**: Menghitung jarak jalan raya (*driving distance*) dan durasi perjalanan mengemudi secara *real-time* dari kecamatan berstatus kritis menuju wilayah berstatus aman terdekat sebagai rekomendasi perbantuan PPDB terdekat.
 
+---
+
+## 5. Keunikan & Inovasi Solusi
+
+### 5.1 Sinergi Multiteknologi
+Platform ini tidak sekadar menggunakan satu teknologi analisis tunggal, melainkan menyinergikan lima pilar arsitektur big data dan geospatial secara dinamis:
+1. **Asynchronous Ingestion (Kafka)** untuk antrean pengumpulan data yang reliabel.
+2. **Distributed Lakehouse Storage (HDFS & Delta Lake)** untuk penyimpanan berkinerja tinggi, bergaransi ACID, transaksional, serta mendukung audit historis data (*Time Travel*).
+3. **Advanced Distributed Processing (Spark)** untuk menjalankan model proyeksi cohort survival dan machine learning clustering.
+4. **Relational Serving Layer Database (PostgreSQL)** untuk menyajikan agregasi data mart secara instan, memisahkan beban kerja komputasi data berat dari aplikasi pengguna.
+5. **Interactive Spasial GIS & Routing (React Leaflet & OSRM Engine)** untuk menyimulasikan aksesibilitas perutean berkendara murid secara geospasial berdasarkan kondisi jalan raya riil.
+
+### 5.2 Analisis Pembeda dari Solusi Eksisting (Kompetitor)
+Dibandingkan dengan sistem yang saat ini digunakan di pemerintahan (seperti Open Data Surabaya atau Dapodik/Kemendikbud):
+* **Solusi Eksisting**: Hanya menyajikan data statistik mentah (jumlah sekolah, jumlah siswa) secara deskriptif statis tanpa kontekstualisasi wilayah terintegrasi. Pengambil kebijakan harus menelaah beberapa berkas terpisah secara manual untuk mencari ketimpangan wilayah.
+* **Platform Ini**: Mengintegrasikan seluruh data demografi penduduk dengan ketersediaan pagu sekolah dasar ke dalam satu indeks kerentanan spasial tunggal (SCGI). Pengambil kebijakan dapat langsung melihat visualisasi area kritis, menyimulasikan efek laju penduduk secara *live*, dan mendapatkan rekomendasi otomatis lokasi pembangunan sekolah (USB/RKB) yang dihitung secara matematis.
+
+### 5.3 Pemecahan Masalah Zonasi PPDB yang Krusial
+Sistem zonasi PPDB sering kali menolak calon murid hanya karena faktor jarak tempat tinggal ke sekolah negeri terdekat, sementara di wilayah tempat tinggal mereka tidak terdapat alternatif sekolah negeri yang memadai.
+* **Inovasi Spasial**: Saat wilayah terdeteksi mengalami defisit kritis, sistem ini mengintegrasikan **OSRM Driving Routing API** untuk mencari jalur jalan raya riil menuju sekolah aman terdekat. Hal ini memberikan rekomendasi operasional taktis bagi dinas pendidikan untuk menetapkan rute transportasi sekolah gratis maupun kerja sama penampungan siswa antar-kecamatan sebagai solusi jangka pendek pra-pembangunan sekolah baru.
 
 ---
 
-## 5. Antarmuka Dashboard Analitik Frontend
+## 6. Antarmuka Dashboard Analitik Frontend
 
 Frontend React dirancang menggunakan standar desain modern (*dark blue & gold glassmorphism*) dengan struktur tab dinamis:
 1. **Pendahuluan & Arsitektur**: Panduan sistem, deskripsi integrasi sistem data terdistribusi, serta penyelarasan sektor sumber data. Dilengkapi transisi efek *ease-in* meluncur ke bawah saat dimuat.
@@ -164,9 +184,9 @@ Frontend React dirancang menggunakan standar desain modern (*dark blue & gold gl
 
 ---
 
-## 6. Panduan Menjalankan Sistem (Runbook)
+## 7. Panduan Menjalankan Sistem (Runbook)
 
-### 6.1 Prasyarat Virtual Environment Host
+### 7.1 Prasyarat Virtual Environment Host
 ```bash
 # Setup venv untuk Kafka Producer & Consumer
 python3 -m venv .venv-host
@@ -174,7 +194,7 @@ source .venv-host/bin/activate
 pip install kafka-python requests
 ```
 
-### 6.2 Langkah Inisialisasi Infrastruktur & Pipeline Data
+### 7.2 Langkah Inisialisasi Infrastruktur & Pipeline Data
 1. **Menyalakan Layanan Infrastruktur (Docker)**:
    ```bash
    docker compose up -d namenode datanode resourcemanager nodemanager kafka postgres
@@ -207,14 +227,14 @@ pip install kafka-python requests
    docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/09_db_sync.py
    ```
 
-### 6.3 Menjalankan Backend API (FastAPI)
+### 7.3 Menjalankan Backend API (FastAPI)
 Layanan backend otomatis terhubung ke PostgreSQL serving layer.
 ```bash
 docker compose up -d --build backend
 ```
 *Swagger UI interaktif tersedia di: `http://localhost:8000/docs`*
 
-### 6.4 Menjalankan Antarmuka Dashboard (Frontend React)
+### 7.4 Menjalankan Antarmuka Dashboard (Frontend React)
 1. Masuk ke direktori frontend:
    ```bash
    cd web/FE
