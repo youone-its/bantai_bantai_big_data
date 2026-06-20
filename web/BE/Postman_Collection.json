@@ -1,0 +1,291 @@
+{
+	"info": {
+		"_postman_id": "8c412f84-18fa-4e78-9e6b-165fbb77f3e8",
+		"name": "Medallion Gold API - Surabaya School Capacity Audit",
+		"description": "Postman collection to test the REST API endpoints connected to the PostgreSQL serving layer.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "System Health & Root",
+			"item": [
+				{
+					"name": "API Root Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Metadata & Tables",
+			"item": [
+				{
+					"name": "List All Available Tables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tables",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"tables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Table Data (with pagination)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tables/gold_rekomendasi_usb_rkb?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"tables",
+								"gold_rekomendasi_usb_rkb"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Table Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tables/gold_cluster_priority/count",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"tables",
+								"gold_cluster_priority",
+								"count"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Business Analytics & Predictions",
+			"item": [
+				{
+					"name": "Rekomendasi USB & RKB",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/rekomendasi?top=10&filter_rekom=USB",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"rekomendasi"
+							],
+							"query": [
+								{
+									"key": "top",
+									"value": "10"
+								},
+								{
+									"key": "filter_rekom",
+									"value": "USB"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Gap Analysis per Kecamatan",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/gap/TAMBAKSARI",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"gap",
+								"TAMBAKSARI"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Proyeksi Demand per Kecamatan",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/proyeksi/SAWAHAN",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"proyeksi",
+								"SAWAHAN"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Advanced Analytics (Analysis 2 - DSS)",
+			"item": [
+				{
+					"name": "School Capacity Gap Index (SCGI)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/scgi?top=5&category=TINGGI",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"scgi"
+							],
+							"query": [
+								{
+									"key": "top",
+									"value": "5"
+								},
+								{
+									"key": "category",
+									"value": "TINGGI"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "K-Means Cluster Priority",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/cluster?priority=KRITIS",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"cluster"
+							],
+							"query": [
+								{
+									"key": "priority",
+									"value": "KRITIS"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Model Evaluation Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analysis/evaluation",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analysis",
+								"evaluation"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

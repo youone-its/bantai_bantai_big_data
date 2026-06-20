@@ -12,7 +12,10 @@ RUN curl -fsSL \
     -o /opt/spark/jars/delta-spark_${SCALA_VERSION}-${DELTA_VERSION}.jar && \
     curl -fsSL \
     "${MAVEN_BASE}/io/delta/delta-storage/${DELTA_VERSION}/delta-storage-${DELTA_VERSION}.jar" \
-    -o /opt/spark/jars/delta-storage-${DELTA_VERSION}.jar
+    -o /opt/spark/jars/delta-storage-${DELTA_VERSION}.jar && \
+    curl -fsSL \
+    "https://jdbc.postgresql.org/download/postgresql-42.7.2.jar" \
+    -o /opt/spark/jars/postgresql-42.7.2.jar
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt

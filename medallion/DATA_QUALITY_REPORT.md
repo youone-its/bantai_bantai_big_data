@@ -1,6 +1,6 @@
 # Data Quality Report — Lakehouse Open Data Surabaya
 
-_Generated: 2026-06-19 09:13:46_
+_Generated: 2026-06-20 05:10:42_
 
 
 **Ringkasan:** 47 pemeriksaan — ✅ 43 PASS · ⚠️ 4 WARN · ❌ 0 FAIL

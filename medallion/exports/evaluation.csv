@@ -1,4 +1,4 @@
 model,metric,value,unit,status,interpretasi,_generated_at
-cohort_projection,MAPE,42.23,persen,PERLU_PERBAIKAN,< 20% = Baik | < 30% = Cukup | ≥ 30% = Perlu Perbaikan,2026-06-19 09:17:18.951241
-kmeans_clustering,Silhouette_Score,0.7327,rasio,BAIK,0.5–1.0 = Baik | 0.25–0.5 = Cukup | < 0.25 = Lemah,2026-06-19 09:17:18.951241
-kmeans_clustering,Davies_Bouldin_Index,1.4145,rasio,CUKUP,< 1.0 = Baik | < 2.0 = Cukup | ≥ 2.0 = Lemah,2026-06-19 09:17:18.951241
+cohort_projection,MAPE,42.23,persen,PERLU_PERBAIKAN,< 20% = Baik | < 30% = Cukup | ≥ 30% = Perlu Perbaikan,2026-06-20 05:11:32.182737
+kmeans_clustering,Silhouette_Score,0.7327,rasio,BAIK,0.5–1.0 = Baik | 0.25–0.5 = Cukup | < 0.25 = Lemah,2026-06-20 05:11:32.182737
+kmeans_clustering,Davies_Bouldin_Index,1.4145,rasio,CUKUP,< 1.0 = Baik | < 2.0 = Cukup | ≥ 2.0 = Lemah,2026-06-20 05:11:32.182737

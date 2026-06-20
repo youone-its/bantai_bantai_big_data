@@ -59,10 +59,16 @@ run_spark_job "05_spark_max_value.py" "SPARK MAX VALUE - Find Max + 20%"
 # Run Analysis 2 (SCGI, K-Means, Evaluation)
 run_spark_job "08_analysis2.py" "ANALYSIS 2 - SCGI, K-Means & Model Evaluation"
 
+# Run Data Quality Report
+run_spark_job "06_data_quality.py" "DATA QUALITY REPORT - Completeness & Integrity Checks"
+
+# Run PostgreSQL database sync
+run_spark_job "09_db_sync.py" "POSTGRESQL SYNC - Load Gold tables to PostgreSQL"
+
 
 echo ""
 echo "========================================================================"
-echo " ✅ ALL MEDALLION PIPELINES COMPLETED!"
+echo " ✅ ALL MEDALLION PIPELINES & POSTGRESYNC COMPLETED!"
 echo "========================================================================"
 echo ""
 echo "Summary:"
@@ -71,9 +77,12 @@ echo "  🥈 Silver: Data cleaned and transformed"
 echo "  🥇 Gold: Business analytics created"
 echo "  📊 Max Value: Max capacity + 20% calculated"
 echo "  🔬 Analysis 2: SCGI, K-Means, MAPE & Evaluation metrics"
+echo "  ✅ Data Quality: Run DQ checks and write reports"
+echo "  🐘 Postgres Sync: Loaded all 14 Gold tables to serving layer"
 echo ""
 echo "Next steps:"
-echo "  - Check results: bash scripts/05-check-medallion.sh"
+echo "  - Check results: bash scripts/06-check-medallion.sh"
 echo "  - Start backend: docker-compose up -d backend"
 echo "  - Access API: http://localhost:8000/docs"
 echo ""
+

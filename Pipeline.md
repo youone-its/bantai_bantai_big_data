@@ -41,19 +41,21 @@ Mengintegrasikan dataset pendidikan Kota Surabaya untuk:
  │                                                                     │
  └──────────────────┬──────────────────────────────────────────────────┘
                     │
-          ┌─────────┴──────────┐
-          │ WebHDFS (port 9870) │  Backend membaca Gold via pyarrow
-          └─────────┬──────────┘
+           09_db_sync.py (Spark JDBC)
                     │
-          ┌─────────▼──────────┐       ┌─────────────────────────────┐
-          │  Backend FastAPI    │       │  Analytics Notebooks (01-06) │
-          │  (:8000)           │       │  baca CSV dari exports/      │
-          │  v2.1 — 8 endpoint │       │  + notebook 06: GeoPandas,   │
-          └─────────┬──────────┘       │    Geopy, OSRM routing       │
-                    │                  └─────────────────────────────┘
-          ┌─────────▼──────────┐
-          │     Frontend       │       container: etsbd-frontend (web/FE)
-          └────────────────────┘
+         ┌──────────▼─────────┐
+         │ PostgreSQL (:5433) │  Serving Layer Database
+         └──────────┬─────────┘
+                    │
+         ┌──────────▼─────────┐       ┌─────────────────────────────┐
+         │  Backend FastAPI   │       │  Analytics Notebooks (01-06) │
+         │  (:8000)           │       │  baca CSV dari exports/      │
+         │  v3.0 — 9 endpoint │       │  + notebook 06: GeoPandas,   │
+         └──────────┬─────────┘       │    Geopy, OSRM routing       │
+                    │                 └─────────────────────────────┘
+         ┌──────────▼─────────┐
+         │     Frontend       │       container: etsbd-frontend (web/FE)
+         └────────────────────┘
 ```
 
 **Penempatan komponen (penting):**
@@ -61,9 +63,10 @@ Mengintegrasikan dataset pendidikan Kota Surabaya untuk:
 | Komponen | Jalan di | Alasan |
 |---|---|---|
 | Kafka, Hadoop (NN/DN/RM/NM) | Container | layanan infrastruktur |
+| PostgreSQL | Container `postgres-db` | serving layer database (port host: 5433, container: 5432) |
 | Producer & Consumer | **Host** (venv) | consumer memakai `docker cp`/`docker exec` ke namenode |
-| Bronze/Silver/Gold/Time-Travel/DQ | Container `spark-medallion` | runtime Spark 3.5 + Delta 3.1 |
-| Backend API | Container `etsbd-backend` | baca Gold via WebHDFS |
+| Bronze/Silver/Gold/Time-Travel/DQ/Sync | Container `spark-medallion` | runtime Spark 3.5 + Delta 3.1 + Postgres JDBC |
+| Backend API | Container `etsbd-backend` | baca Gold via PostgreSQL serving layer (SQLAlchemy + psycopg2) |
 
 > Folder `spark/` lama (orphan, kosong) sudah **dihapus**. Semua analitik Spark
 > hidup di dalam `medallion/` dan dijalankan di container `spark-medallion`.
@@ -193,20 +196,21 @@ skor_prioritas = defisit  → ranking menurun
 - Hasil terakhir: **43 PASS / 4 WARN / 0 FAIL**.
 
 ## 7. Backend API (`web/BE/main.py`, FastAPI :8000)
-Membaca Delta dari Gold via WebHDFS — **hanya file aktif** dari `_delta_log`
-(menghindari salah hitung akibat file lama pasca overwrite/time-travel).
+Membaca data Gold dari PostgreSQL serving layer (hasil sinkronisasi dari Delta Lakehouse via Spark JDBC).
 
-| Endpoint | Fungsi |
-|---|---|
-| `GET /tables` | Daftar tabel Gold |
-| `GET /tables/{name}?limit&offset` | Isi tabel |
-| `GET /analysis/rekomendasi?top&filter_rekom` | Ranking USB/RKB |
-| `GET /analysis/gap/{kecamatan}` | Tren gap per tahun |
-| `GET /analysis/proyeksi/{kecamatan}` | Proyeksi demand per tahun |
-| `GET /analysis/scgi?top&category` | SCGI per kecamatan (filter: KRITIS/TINGGI/SEDANG/RENDAH/AMAN) |
-| `GET /analysis/cluster?priority` | K-Means cluster + ringkasan per prioritas |
-| `GET /analysis/evaluation` | Metrik evaluasi: MAPE, Silhouette, Davies-Bouldin |
-| `GET /health` | Status koneksi HDFS |
+| Endpoint                                     | Fungsi                                                           |
+| ----------------------------------------------| ------------------------------------------------------------------|
+| `GET /`                                      | Informasi service backend                                        |
+| `GET /tables`                                | Daftar tabel Gold                                                |
+| `GET /tables/{table_name}?limit&offset`      | Isi data tabel Gold                                              |
+| `GET /tables/{table_name}/count`             | Jumlah baris data tabel Gold                                     |
+| `GET /analysis/rekomendasi?top&filter_rekom` | Ranking rekomendasi prioritas USB/RKB                            |
+| `GET /analysis/gap/{kecamatan}`              | Tren gap demand vs kapasitas per tahun untuk satu kecamatan      |
+| `GET /analysis/proyeksi/{kecamatan}`         | Proyeksi demand SD/SMP per tahun untuk satu kecamatan            |
+| `GET /analysis/scgi?top&category`            | SCGI per kecamatan (filter: KRITIS/TINGGI/SEDANG/RENDAH/AMAN)    |
+| `GET /analysis/cluster?priority`             | K-Means cluster + ringkasan per prioritas intervensi             |
+| `GET /analysis/evaluation`                   | Metrik evaluasi model: MAPE proyeksi, Silhouette, Davies-Bouldin |
+| `GET /health`                                | Status koneksi PostgreSQL serving layer                          |
 
 ## 8. Cara Menjalankan (runbook)
 
@@ -241,13 +245,59 @@ docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/03_gold
 docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/04_time_travel.py
 docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/06_data_quality.py
 docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/08_analysis2.py
+docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/09_db_sync.py
 # (opsional) demo pipeline kecil max-value:
 # docker exec -e HADOOP_USER_NAME=hadoop spark-medallion spark-submit /app/05_spark_max_value.py
 
-# Setelah selesai: CSV tersedia di medallion/exports/ + 3 tabel Gold baru terbentuk
+# Setelah selesai: CSV tersedia di medallion/exports/ + data Gold tersinkronisasi penuh ke database PostgreSQL (Serving Layer)
 
-# 6. Backend API v2.1 (Spark -> Backend)
-docker compose up -d --build backend
+# 6. Menjalankan Backend API (BE) & Frontend (FE)
+
+## 6.1 Backend API (BE) — FastAPI
+Anda dapat menjalankan Backend di dalam Container (direkomendasikan) atau di Host lokal untuk proses development.
+
+### Opsi A: Menjalankan di dalam Container (Docker)
+Layanan backend otomatis terhubung ke PostgreSQL serving layer.
+```bash
+docker compose up -d --build backend postgres
+```
+
+### Opsi B: Menjalankan di Host Lokal (Development)
+1. Naikkan database PostgreSQL serving layer:
+   ```bash
+   docker compose up -d postgres
+   ```
+2. Jalankan server FastAPI di host lokal:
+   ```bash
+   cd web/BE
+   uv venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   uv pip install -e .
+   uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+## 6.2 Frontend Dashboard (FE) — React + TS + Vite
+Frontend dijalankan menggunakan Node/NPM di host lokal.
+
+1. Masuk ke direktori frontend:
+   ```bash
+   cd web/FE
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Jalankan server development:
+   ```bash
+   npm run dev
+   ```
+   *Frontend default berjalan pada: http://localhost:5173 (atau port alternatif jika terpakai).*
+
+4. Build produksi (Opsional):
+   ```bash
+   npm run build
+   npm run preview
+   ```
 
 # 7. Verifikasi semua endpoint
 curl http://localhost:8000/health
@@ -260,8 +310,11 @@ curl http://localhost:8000/analysis/proyeksi/SAWAHAN
 # Swagger UI interaktif: http://localhost:8000/docs
 
 # 8. Analytics Notebooks (untuk eksplorasi & presentasi)
-#    Pastikan .venv sudah ada (pip install -r notebooks/requirements.txt)
-.venv/bin/jupyter notebook notebooks/
+#    Install dependency & jupyter ke virtual environment host (.venv-host):
+./.venv-host/bin/pip install -r notebooks/requirements.txt notebook
+
+#    Jalankan server jupyter notebook:
+./.venv-host/bin/jupyter notebook notebooks/
 # Jalankan urut: 01 → 02 → 03 → 04 → 05 → 06
 # Pada notebook 06: Kernel → Restart → Run All Cells
 #   (Cell pertama otomatis install geopandas, geopy, folium jika belum ada)
@@ -285,7 +338,7 @@ curl http://localhost:8000/analysis/proyeksi/SAWAHAN
 - OSRM routing POC menggunakan `router.project-osrm.org` (public API). Jika tidak ada
   koneksi internet, visualisasi fallback ke garis lurus antar centroid.
 
-## 10. Struktur File Penting (PIC: Ni'mah — Analysis 2)
+## 10. Struktur File Penting 
 
 ```
 bantai_bantai_big_data/
@@ -310,5 +363,5 @@ bantai_bantai_big_data/
 │       ├── surabaya_kecamatan_coords.csv   # Koordinat 31 kecamatan (Geopy)
 │       └── surabaya_kecamatan_voronoi.geojson  # Batas wilayah (GeoPandas)
 └── web/BE/
-    └── main.py                             # FastAPI v2.1 — termasuk endpoint Analysis 2
+    └── main.py                             # FastAPI v3.0 — terintegrasi dengan PostgreSQL Serving Layer
 ```

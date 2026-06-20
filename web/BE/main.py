@@ -1,28 +1,21 @@
 """
-BACKEND API: Read data from Gold Medallion Layer via REST API
-=============================================================
-Membaca tabel Delta dari HDFS Gold layer (hasil pipeline Bronze -> Silver -> Gold).
-
-Catatan teknis: tabel Gold adalah Delta Lake (folder berisi parquet + _delta_log).
-Membaca SEMUA parquet di folder akan salah hitung setelah overwrite/time-travel,
-karena file lama belum di-VACUUM. Maka kita membaca _delta_log untuk menentukan
-file parquet yang AKTIF (add - remove) pada versi terbaru.
+BACKEND API: Read data from Gold Serving Layer via PostgreSQL REST API
+=====================================================================
+Membaca tabel Gold dari PostgreSQL serving layer (hasil sinkronisasi dari Delta Lakehouse).
 """
 
 import os
-import io
-import json
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import pyarrow.parquet as pq
-from hdfs import InsecureClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.pool import QueuePool
 
 app = FastAPI(
     title="Medallion Gold API - Open Data Surabaya",
-    description="REST API untuk audit kapasitas pendidikan & rekomendasi USB/RKB dari Gold Layer",
-    version="2.0.0",
+    description="REST API untuk audit kapasitas pendidikan & rekomendasi USB/RKB dari PostgreSQL serving layer",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -33,11 +26,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-HDFS_HOST = os.getenv("HDFS_HOST", "namenode")
-WEBHDFS_PORT = os.getenv("WEBHDFS_PORT", "9870")
-GOLD_PATH = os.getenv("GOLD_PATH", "/lakehouse/gold")
+# PostgreSQL configurations
+DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "bigdata_db")
+DB_USER = os.getenv("POSTGRES_USER", "hadoop")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
-hdfs_client = InsecureClient(url=f"http://{HDFS_HOST}:{WEBHDFS_PORT}", root=GOLD_PATH)
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Setup Connection Pool
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=QueuePool,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600
+)
 
 # Tabel Gold yang tersedia (deskriptif + analitik)
 GOLD_TABLES = {
@@ -74,57 +79,37 @@ class TablesListResponse(BaseModel):
     tables: dict[str, str]
 
 
-def _active_parquet_files(table_name: str) -> list[str]:
-    """Tentukan file parquet AKTIF dari _delta_log (add - remove)."""
-    log_dir = f"{table_name}/_delta_log"
+def read_postgres_table(table_name: str) -> list[dict]:
+    """Baca isi tabel dari PostgreSQL sebagai list[dict]."""
+    if table_name not in GOLD_TABLES:
+        raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
+    
     try:
-        log_files = sorted(f for f in hdfs_client.list(log_dir) if f.endswith(".json"))
-    except Exception:
-        raise HTTPException(status_code=404, detail=f"Bukan tabel Delta atau tidak ada: {table_name}")
-
-    added: list[str] = []
-    removed: set[str] = set()
-    for lf in log_files:
-        with hdfs_client.read(f"{log_dir}/{lf}", encoding="utf-8") as reader:
-            for line in reader.read().splitlines():
-                if not line.strip():
-                    continue
-                action = json.loads(line)
-                if "add" in action:
-                    added.append(action["add"]["path"])
-                if "remove" in action:
-                    removed.add(action["remove"]["path"])
-    seen = set()
-    active = []
-    for p in added:
-        if p not in removed and p not in seen:
-            seen.add(p)
-            active.append(p)
-    return active
-
-
-def read_delta_table(table_name: str) -> list[dict]:
-    """Baca isi tabel Delta (versi terbaru) sebagai list[dict]."""
-    active = _active_parquet_files(table_name)
-    if not active:
-        return []
-    all_data: list[dict] = []
-    for pf in active:
-        with hdfs_client.read(f"{table_name}/{pf}", encoding=None) as reader:
-            buf = io.BytesIO(reader.read())  # pyarrow butuh objek seekable
-        table = pq.read_table(buf)
-        all_data.extend(table.to_pylist())
-    for row in all_data:
-        for tech in ("_gold_created_at", "_processed_at", "_updated_at", "_generated_at", "_refreshed_at"):
-            row.pop(tech, None)
-    return all_data
+        with engine.connect() as conn:
+            # Table name is validated against GOLD_TABLES keys to prevent SQL injection
+            query = text(f'SELECT * FROM "{table_name}"')
+            result = conn.execute(query)
+            columns = list(result.keys())
+            
+            data = []
+            for row in result.fetchall():
+                # Convert row mapping or tuple to dict
+                row_dict = dict(zip(columns, row))
+                # Remove technical metadata columns if they exist
+                for tech in ("_gold_created_at", "_processed_at", "_updated_at", "_generated_at", "_refreshed_at", "id"):
+                    row_dict.pop(tech, None)
+                data.append(row_dict)
+                
+            return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error reading table '{table_name}': {str(e)}")
 
 
 @app.get("/")
 async def root():
     return {
-        "message": "Medallion Gold API - Open Data Surabaya",
-        "version": "2.1.0",
+        "message": "Medallion Gold API - Open Data Surabaya (PostgreSQL serving layer)",
+        "version": "3.0.0",
         "docs": "/docs",
         "endpoints": [
             "/tables", "/tables/{name}",
@@ -152,7 +137,7 @@ async def get_table(
 ):
     if table_name not in GOLD_TABLES:
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
-    data = read_delta_table(table_name)
+    data = read_postgres_table(table_name)
     columns = list(data[0].keys()) if data else []
     return TableResponse(
         table_name=table_name,
@@ -167,7 +152,7 @@ async def get_table(
 async def get_table_count(table_name: str):
     if table_name not in GOLD_TABLES:
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
-    return {"table_name": table_name, "count": len(read_delta_table(table_name))}
+    return {"table_name": table_name, "count": len(read_postgres_table(table_name))}
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +164,7 @@ async def rekomendasi(
     filter_rekom: Optional[str] = Query(default=None, description="USB | RKB | CUKUP"),
 ):
     """Daftar rekomendasi USB/RKB diurutkan berdasarkan prioritas (defisit terbesar)."""
-    data = read_delta_table("gold_rekomendasi_usb_rkb")
+    data = read_postgres_table("gold_rekomendasi_usb_rkb")
     if filter_rekom:
         data = [r for r in data if r.get("rekomendasi") == filter_rekom.upper()]
     data.sort(key=lambda r: r.get("peringkat_prioritas", 9999))
@@ -190,7 +175,7 @@ async def rekomendasi(
 async def gap_kecamatan(kecamatan: str):
     """Tren gap demand vs kapasitas per tahun untuk satu kecamatan."""
     key = kecamatan.upper().replace(" ", "")
-    data = [r for r in read_delta_table("gold_gap_analysis") if r.get("kecamatan_key") == key]
+    data = [r for r in read_postgres_table("gold_gap_analysis") if r.get("kecamatan_key") == key]
     if not data:
         raise HTTPException(status_code=404, detail=f"Kecamatan '{kecamatan}' tidak ditemukan")
     data.sort(key=lambda r: r.get("tahun_proyeksi", 0))
@@ -201,7 +186,7 @@ async def gap_kecamatan(kecamatan: str):
 async def proyeksi_kecamatan(kecamatan: str):
     """Proyeksi demand SD/SMP per tahun untuk satu kecamatan."""
     key = kecamatan.upper().replace(" ", "")
-    data = [r for r in read_delta_table("gold_demand_proyeksi") if r.get("kecamatan_key") == key]
+    data = [r for r in read_postgres_table("gold_demand_proyeksi") if r.get("kecamatan_key") == key]
     if not data:
         raise HTTPException(status_code=404, detail=f"Kecamatan '{kecamatan}' tidak ditemukan")
     data.sort(key=lambda r: r.get("tahun_proyeksi", 0))
@@ -229,7 +214,7 @@ async def scgi(
     - top      : ambil N kecamatan teratas (urut scgi_rank)
     - category : filter kategori SCGI
     """
-    data = read_delta_table("gold_school_capacity_gap_index")
+    data = read_postgres_table("gold_school_capacity_gap_index")
     if category:
         data = [r for r in data if r.get("scgi_category") == category.upper()]
     data.sort(key=lambda r: r.get("scgi_rank", 9999))
@@ -259,10 +244,11 @@ async def cluster(
     Query params:
     - priority : filter label prioritas
     """
-    data = read_delta_table("gold_cluster_priority")
+    data = read_postgres_table("gold_cluster_priority")
     if priority:
         data = [r for r in data if r.get("priority_label") == priority.upper()]
     data.sort(key=lambda r: (r.get("priority_rank", 9), r.get("scgi_rank", 9999)))
+    
     # Ringkasan per cluster
     summary: dict = {}
     for row in data:
@@ -271,6 +257,7 @@ async def cluster(
         summary.setdefault(pid, {"priority_rank": row.get("priority_rank"),
                                   "priority_label": plabel, "kecamatan": []})
         summary[pid]["kecamatan"].append(row.get("kecamatan_norm"))
+        
     return {
         "count": len(data),
         "filter_priority": priority,
@@ -287,20 +274,21 @@ async def evaluation():
     - Silhouette Score   : kualitas cluster K-Means (> 0.5 = Baik)
     - Davies-Bouldin Index: kompaktitas cluster (< 1.0 = Baik)
     """
-    data = read_delta_table("gold_evaluation_metrics")
+    data = read_postgres_table("gold_evaluation_metrics")
     return {"count": len(data), "data": data}
 
 
 @app.get("/health")
 async def health_check():
     try:
-        hdfs_client.list("")
-        hdfs_status = "connected"
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        postgres_status = "connected"
     except Exception as e:
-        hdfs_status = f"disconnected: {str(e)}"
-    return {"status": "healthy", "hdfs_status": hdfs_status, "gold_path": GOLD_PATH}
+        postgres_status = f"disconnected: {str(e)}"
+    return {"status": "healthy", "postgres_status": postgres_status, "database": DB_NAME}
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

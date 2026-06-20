@@ -121,6 +121,7 @@ services:
     container_name: etsbd-backend
     depends_on:
       - namenode
+      - postgres
     ports:
       - "8000:8000"
     environment:
@@ -128,3 +129,25 @@ services:
       - HDFS_PORT=8020
       - WEBHDFS_PORT=9870
       - GOLD_PATH=/lakehouse/gold
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=bigdata_db
+      - POSTGRES_USER=hadoop
+      - POSTGRES_PASSWORD=password
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=bigdata_db
+      - POSTGRES_USER=hadoop
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+
+
