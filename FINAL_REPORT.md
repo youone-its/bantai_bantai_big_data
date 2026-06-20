@@ -8,7 +8,9 @@
 ### 1.1 Masalah Riil Sektor Pendidikan
 Setiap tahun, proses Penerimaan Peserta Didik Baru (PPDB) tingkat Sekolah Dasar (SD) di Kota Surabaya menghadapi permasalahan kompleks terkait zonasi dan daya tampung. Keterbatasan daya tampung sekolah negeri dan ketimpangan penyebaran fasilitas pendidikan memicu konflik sosial tahunan. Isu ini secara konsisten menjadi sorotan media lokal (*Jawa Pos*, *Suara Surabaya*, *Detik Jatim*), khususnya pada rentang Juni–Juli.
 
-[![Preview](https://image.thum.io/get/width/700/https://www.kompas.com/edu/read/2025/06/23/153243771/jppi-spmb-2025-masih-diskriminatif)](https://www.kompas.com/edu/read/2025/06/23/153243771/jppi-spmb-2025-masih-diskriminatif)
+## Referensi Berita
+
+- [JPPI: SPMB 2025 Masih Diskriminatif](https://www.kompas.com/edu/read/2025/06/23/153243771/jppi-spmb-2025-masih-diskriminatif)
 
 Meskipun Pemerintah Kota Surabaya menyediakan data terbuka melalui **Open Data Surabaya**, data tersebut masih bersifat deskriptif dan sektoral terpisah. Belum ada sistem yang mampu memberikan jawaban strategis mengenai:
 1. Proyeksi kebutuhan bangku sekolah dasar untuk 3–5 tahun mendatang.
