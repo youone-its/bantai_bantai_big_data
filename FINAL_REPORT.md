@@ -1,4 +1,4 @@
-# DOKUMENTASI EKSEKUTIF & TEKNIS PROYEK AKHIR
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 02" src="https://github.com/user-attachments/assets/a1966241-f7ec-4d4b-9d93-c1c4e8741448" /># DOKUMENTASI EKSEKUTIF & TEKNIS PROYEK AKHIR
 ## Sistem Audit Ketimpangan Kapasitas Pendidikan Dasar Kota Surabaya Berbasis Arsitektur Data Lakehouse dan Predictive School Capacity Analytics
 
 ---
@@ -311,3 +311,25 @@ bantai_bantai_big_data/
 Semua berkas Jupyter Notebook (Notebook 01 s.d. 05) sudah selesai melaksanakan tugasnya sebagai "laboratorium riset" dan tidak perlu dijalankan satu per satu saat running di production.
 * **Logikanya Sudah Diambil Alih oleh PySpark Pipeline**: Semua rumus komputasi proyeksi cohort survival, pengelompokan K-Means, perhitungan indeks komposit SCGI, hingga metrik evaluasi sudah disalin dan diotomatisasi secara terdistribusi di dalam script Spark `08_analysis2.py` dan disinkronkan ke PostgreSQL serving database oleh `09_db_sync.py`.
 * **Aset Spasial (Voronoi & Koordinat) Sudah Tersimpan Permanen**: Output geospasial penting yang dihasilkan di Notebook 06 sudah disimpan secara berkala: Batas wilayah poligon kecamatan sudah tersimpan di `web/FE/public/surabaya_kecamatan_voronoi.geojson`, koordinat latitude/longitude centroid 31 kecamatan sudah tersinkronisasi di database PostgreSQL, dan perutean jalan raya (OSRM) dihitung secara instan langsung oleh browser pengguna di Frontend React.
+
+---
+## 9. Tampilan UI Web
+### 9.1 Pendahuluan & Arsitektur BigData
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 02" src="https://github.com/user-attachments/assets/14e2b435-c22a-4926-bc5a-8847a9e1fcdd" />
+
+### 9.2 Peta GIS
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 10" src="https://github.com/user-attachments/assets/72d46152-46e3-4c40-98f7-691033a6b778" />
+
+### 9.3 Proyeksi Kebutuhan Bangku
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 25" src="https://github.com/user-attachments/assets/2a28e74c-8dc5-4f5e-8b25-ada101f05695" />
+
+### 9.4 School Capacity Gap Index
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 32" src="https://github.com/user-attachments/assets/b4cde0a0-aed0-4b20-9ad3-c12175eb4fbb" />
+
+### 9.5 Estimasi Siswa Tidak Tertampung
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 38" src="https://github.com/user-attachments/assets/ca5e72c5-0002-4c5d-a752-e51c934ee17e" />
+
+### 9.6 Rekomendasi USB & RKB
+<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 49" src="https://github.com/user-attachments/assets/4e5b290c-ce1e-4b63-bafb-ebe43b84f7ed" />
+
+
