@@ -1,5 +1,14 @@
-<img width="1470" height="836" alt="Screenshot 2026-06-20 at 20 53 02" src="https://github.com/user-attachments/assets/a1966241-f7ec-4d4b-9d93-c1c4e8741448" /># DOKUMENTASI EKSEKUTIF & TEKNIS PROYEK AKHIR
+# DOKUMENTASI FINAL PROJECT BIG DATA DAN DATA LAKEHOUSE
 ## Sistem Audit Ketimpangan Kapasitas Pendidikan Dasar Kota Surabaya Berbasis Arsitektur Data Lakehouse dan Predictive School Capacity Analytics
+
+Author: Kelompok 5 (A)
+| No | NRP | Nama | 
+|----|-----|------|
+| 1 | 5027241002 | Balqis Sani Sabillah | 
+| 2 | 5027241093 | Mochammad Atha Tajuddin | 
+| 3 | 5027241004 | Mey Rosalina | 
+| 4 | 5027241103 | Ni'mah Fauziyyah Atok |
+| 5 | 5027241027 | Yuan Banny Albyan | 
 
 ---
 
